@@ -16,8 +16,8 @@ with open('./sets.dsv', 'r') as DSV:
 		code = values[0]
 		full_text = ' '.join(values[1:len(values)])
 
-		codes[full_text] = code
-		texts[code] = full_text
+		codes[full_text.lower()] = code.lower()
+		texts[code.lower()] = full_text.lower()
 
 # Just a class for holding card data from Scryfall. 
 class Card:

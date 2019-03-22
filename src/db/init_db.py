@@ -6,6 +6,7 @@ def create_db():
 
 def create_tables(conn, cursor):
 	cursor.execute('CREATE TABLE card_inventory (card_name text, quantity int, from_set text, price text, hash_id text)') 
+	cursor.execute('CREATE TABLE invoice_list (card_name text, quantity int, from_set text, sell_price text, hash_id text)')
 	cursor.execute('CREATE TABLE db_interactions (interaction text)')
 	conn.commit()
 
