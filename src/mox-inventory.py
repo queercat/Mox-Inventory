@@ -71,6 +71,8 @@ def remove_card(card_name, quantity, from_set, sell_price):
 
 app = flask.Flask(__name__)
 
+@app.route('/cards'
+
 @app.route('/cards/<uuid>', methods = ['POST'])
 def handle_add():
 	message = flask.request.json
