@@ -2,7 +2,6 @@ import json
 import requests
 
 scryfall_fuzzy_card_search = 'https://api.scryfall.com/cards/named?fuzzy='
-scryfall_fuzzy_set_search = 'https://api.scryfall.com/cards/named?fuzzy={}?set={}'
 
 codes = {} # [English Text Set Name] -> Code
 texts = {} # [Code] -> English Text Set Name
@@ -16,8 +15,8 @@ with open('./sets.dsv', 'r') as DSV:
 		code = values[0]
 		full_text = ' '.join(values[1:len(values)])
 
-		codes[full_text.lower()] = code.lower()
-		texts[code.lower()] = full_text.lower()
+		codes[full_text.lower()] = code
+		texts[code.lower()] = full_text
 
 # Just a class for holding card data from Scryfall. 
 class Card:
@@ -57,32 +56,25 @@ def generate_card_from_name(name):
 		name = req_obj['name']
 		card_type = req_obj['type_line']
 		mana_cost = req_obj['mana_cost']
-		from_set_code = req_obj['from_set_code']
-		from_set = req_obj['set_name']
+		from_set_code = req_obj['set']
+		from_set = req_obj['set']
 		oracle_text = req_obj['oracle_text']
 		collector_number = req_obj['collector_number']
 		prices = req_obj['prices']
 		legality = req_obj['legalities']
 		card_images = req_obj['image_uris']
 
-		return Card(name, card_type, mana_cost, from_set_code, from_set, oracle_text, prices, legality, card_images)
+		return Card(name, card_type, mana_cost, from_set_code, from_set, collector_number, oracle_text, prices, legality, card_images)
 
-# generate_collector_number ... Gets the collector number of a particular card given the set and the name.
-def generate_collector_number(name, from_set):
-	set_code = ''
+# get_set_from_name ... Generates a card and returns the set name.
+def get_set_from_name(name):
+	card = generate_card_from_name(name)
+	return card.from_set
 
-	if ' ' in from_set:
-		set_code = codes.get(from_set, '')
+# to_code ... Converts a set name to a set code. Returns None if fail-to-find.
+def to_code(from_set):
+	return codes.get(from_set, None)
 
-	else:
-		set_code = from_set
-
-	req = requests.get(scryfall_fuzzy_set_search.format(name, set_code))
-	req_obj = req.json()
-
-	if req_obj['object'] == 'error':
-		return None
-
-	else:
-		collector_number = req_obj['collector_number']
-		return collector_number
+# to_set ... Converts a set code to a set name. Returns None if fail-to-find.
+def to_set(set_code):
+	return texts.get(set_code, None)
