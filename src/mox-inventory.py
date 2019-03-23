@@ -69,6 +69,14 @@ def remove_card(card_name, quantity, from_set, sell_price):
 
 			update_db('Sold {} {} from set {} for {}.'.format(quantity, card_name, from_set, sell_price))
 
+# Returns a list version of all cards that match that name and set.
+def get_card(card_name, from_set):
+	if from_set == '':
+		cards_resp = cursor.execute('SELECT card_name FROM card_inventory WHERE card_name = ?', [card_name]) 
+		cards = cards_resp.fetchall()
+	else:
+		hash_id = generate_hash(card_name, from_set) 
+
 app = flask.Flask(__name__)
 
 @app.route('/cards'
