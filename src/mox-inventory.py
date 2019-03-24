@@ -33,10 +33,7 @@ def generate_hash(name, from_set):
 	return md5.hexdigest() 
 
 # Adds a card to the inventory DB.
-def add_card(card_name, from_set, quantity,  price):
-	
-	print('I got here')
-
+def add_card(card_name, from_set, quantity):
 	if from_set is None:
 		from_set = card_util.get_set_from_name(card_name)
 
@@ -51,12 +48,12 @@ def add_card(card_name, from_set, quantity,  price):
 	card = cursor.execute('SELECT * FROM card_inventory WHERE hash_id = ?', [hash_id]).fetchone()
 
 	if card is None:
-		cursor.execute('INSERT INTO card_inventory VALUES (?, ?, ?, ?, ?)', [card_name, quantity, from_set, price, hash_id])
+		cursor.execute('INSERT INTO card_inventory VALUES (?, ?, ?, ?)', [card_name, quantity, from_set, hash_id])
 	
 	else:
 		cursor.execute('UPDATE card_inventory SET quantity = quantity + ? WHERE hash_id = ?', [quantity, hash_id])
 
-	update_db('Added {} {} from set {} at price {}.'.format(quantity, card_name, from_set, price))
+	update_db('Added {} {} from set {}.'.format(quantity, card_name, from_set))
 
 # Removes a card from the inventory DB adds it to the invoice list if money was made.
 def remove_card(card_name, from_set, quantity, sell_price):
@@ -85,34 +82,63 @@ def get_card(card_name, from_set):
 	cards = None
 
 	if from_set is None:
-		from_set = card_util.get_set_from_name(card_name)
-	
-	converted_code = card_util.to_code(from_set.lower())
-
-	if converted_code is not None:
-		from_set = converted_code
-
-	if from_set is None:
 		cards_resp = cursor.execute('SELECT card_name, from_set, quantity FROM card_inventory WHERE card_name = ?', [card_name]) 
+			
 		return cards_resp.fetchall()
 
 	else:
+		converted_code = card_util.to_code(from_set.lower())
+	
+		if converted_code is not None:
+			from_set = converted_code
+
 		hash_id = generate_hash(card_name, from_set) 
 		card_resp = cursor.execute('SELECT card_name, from_set, quantity FROM card_inventory WHERE hash_id = ?', [hash_id])	
+		
 		return card_resp.fetchone()
-	
-app = flask.Flask(__name__)
+
+# Returns a list of all cards in the DB.
+def get_all_cards():
+	cards_resp = cursor.execute('SELECT card_name, from_set, quantity FROM card_inventory')
+	cards = cards_resp.fetchall()
+
+	return cards
+
+# Flask stuff! :)
+
+app = flask.Flask(__name__, static_url_path='', static_folder='web')
 
 @app.route('/')
 def index():
-	return 'Index'
+	return flask.send_from_directory('web', 'index.html')
+
+@app.route('/<path:path>')
+def serve(path):
+	return flask.send_from_directory('web', path)
+
 
 @app.route('/cards/search/', methods = ['GET'])
 def search_return_card():
 	card_name = flask.request.args.get('card', None)
 	from_set = flask.request.args.get('set', None)
 
-	return(str(get_card(card_name, from_set)))
+	return(flask.jsonify(get_card(card_name, from_set)))
+
+@app.route('/cards/get/', methods = ['GET'])
+def return_all_cards():
+	cards = get_all_cards()
+
+	cards_list = []
+
+	for card in cards:
+		name = card[0]
+		from_set = card[1]
+		quantity = card[2]
+
+		cards_list.append({'name': name, 'from_set': from_set, 'quantity': quantity})
+
+	cards_json = flask.jsonify(cards_list)
+	return(cards_json)
 
 @app.route('/cards/add/', methods = ['GET'])
 def add_card_to_db():
@@ -121,17 +147,13 @@ def add_card_to_db():
 	card_name = flask.request.args.get('card', None)
 	from_set = flask.request.args.get('set', None)
 	quantity = flask.request.args.get('qty', None)
-	price = flask.request.args.get('price', None)
 
 	if quantity is None:
 		quantity = 1
 
-	if price is None:
-		price = 0
+	add_card(card_name, from_set, quantity)
 
-	add_card(card_name, from_set, quantity, price)
-
-	return 'Added {} {} from set {} @ price {}'.format(quantity, card_name, from_set, price)
+	return 'Added {} {} from set {}'.format(quantity, card_name, from_set)
 
 @app.route('/cards/<uuid>', methods = ['POST'])
 def handle_add():
@@ -145,9 +167,8 @@ def handle_add():
 		card_name = card['card_name']
 		quantity = card['quantity']
 		from_set = card['from_set']
-		price = card['price']	
 
-		add_card(card_name, quantity, from_set, price)
+		add_card(card_name, quantity, from_set)
 
 	for card in removals:
 		card_name = card['card_name']
@@ -156,3 +177,6 @@ def handle_add():
 		sell_price = card['sell_price']	
 
 		remove_card(card_name, quantity, from_set, sell_price) 
+
+if __name__ == "__main__":
+	app.run('0.0.0.0', port=80)
